@@ -1,12 +1,19 @@
-FROM node:alpine
+# Name the node stage "builder"
+FROM node:17 AS builder
+# Set working directory
 WORKDIR /app
-
-# COPY the package.json file, update any deps and install them
-COPY package.json .
-RUN npm update
-RUN npm install
-
-# copy the whole source folder(the dir is relative to the Dockerfile
+# Copy all files from current directory to working dir in image
 COPY . .
+# install node modules and build assets
+RUN yarn install && yarn build
 
-CMD [ "npm", "run", "develop" ]
+# nginx state for serving content
+FROM nginx:alpine
+# Set working directory to nginx asset directory
+WORKDIR /usr/share/nginx/html
+# Remove default nginx static assets
+RUN rm -rf ./*
+# Copy static assets from builder stage
+COPY --from=builder /app/public .
+# Containers run nginx with global directives and daemon off
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
